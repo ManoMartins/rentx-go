@@ -4,10 +4,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"rentx/models"
 	"rentx/repositories"
+	"rentx/services"
 )
 
 func CategoriesRouter(api fiber.Router) {
 	newCategoriesRepository := repositories.NewCategoriesRepository()
+	newCreateCategoryService := services.NewCreateCategoryService(newCategoriesRepository)
 
 	api.Get("/", func(c *fiber.Ctx) error {
 		categories, err := newCategoriesRepository.GetAll()
@@ -28,25 +30,11 @@ func CategoriesRouter(api fiber.Router) {
 			return err
 		}
 
-		category := repositories.CreateCategoryDTO{
-			Name:        body.Name,
-			Description: body.Description,
-		}
-
-		checkAlreadyExists, err := newCategoriesRepository.GetByName(category.Name)
+		newCategory, err := newCreateCategoryService.Execute(services.Request{Name: body.Name, Description: body.Description})
 
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-		}
-
-		if checkAlreadyExists != nil {
-			return c.Status(fiber.StatusConflict).SendString("Category already exists")
-		}
-
-		newCategory, err := newCategoriesRepository.Create(&category)
-
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+			c.Status(fiber.StatusBadRequest).SendString(err.Error())
+			return err
 		}
 
 		return c.Status(fiber.StatusCreated).JSON(newCategory)
